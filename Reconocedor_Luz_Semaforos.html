@@ -1,0 +1,2189 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>Reconocedor de Semáforos</title>
+    
+    <!-- Importar la fuente Lexend de Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@700&display=swap" rel="stylesheet">
+    
+    <style>
+        /* ==========================================
+           VARIABLES CSS PARA CONSISTENCIA DE DISEÑO
+           ========================================== */
+        :root {
+            --primary-color: #333333;      /* Gris oscuro */
+            --secondary-color: #555555;    /* Gris medio */
+            --accent-color: #1e88e5;       /* Azul acento */
+            --light-blue: #e3f2fd;        /* Azul muy claro */
+            --medium-blue: #90caf9;       /* Azul medio */
+            --light-gray: #f5f5f5;        /* Gris muy claro */
+            --bg-opacity: 0.95;            /* Opacidad del fondo */
+            --card-radius: 20px;          /* Radio de bordes redondeados */
+            --light-radius: 50%;          /* Radio para elementos circulares */
+            --transition-speed: 0.3s;     /* Velocidad de transiciones */
+            --shadow-light: 0 5px 15px rgba(0, 0, 0, 0.1);
+            --shadow-medium: 0 10px 30px rgba(0, 0, 0, 0.1);
+            --shadow-heavy: 0 4px 12px rgba(0, 0, 0, 0.2);
+            --shadow-blue: 0 5px 15px rgba(30, 136, 229, 0.3);
+        }
+
+        /* ==========================================
+           ESTILOS BASE Y NORMALIZACIÓN
+           ========================================== */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Lexend', sans-serif;
+            font-weight: 700;
+            -webkit-tap-highlight-color: transparent;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+
+        body {
+            background: linear-gradient(135deg, #ffffff, #f5f5f5, #ffffff);
+            color: var(--primary-color);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            overflow-x: hidden;
+            line-height: 1.6;
+        }
+
+        .main-container {
+            width: 100%;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        /* ==========================================
+           CONTENEDOR PRINCIPAL
+           ========================================== */
+        .container {
+            background: rgba(255, 255, 255, var(--bg-opacity));
+            border-radius: var(--card-radius);
+            padding: clamp(20px, 4vw, 40px);
+            max-width: 1000px;
+            width: 100%;
+            box-shadow: var(--shadow-medium);
+            text-align: center;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(0, 0, 0, 0.1);
+            margin: 0 auto;
+            position: relative;
+        }
+
+        /* ==========================================
+           TIPOGRAFÍA
+           ========================================== */
+        h1 {
+            margin-bottom: clamp(15px, 3vw, 25px);
+            font-size: clamp(1.8rem, 4vw, 2.8rem);
+            line-height: 1.2;
+            color: var(--primary-color);
+            font-weight: 700;
+            position: relative;
+            display: inline-block;
+        }
+
+        h1::after {
+            content: '';
+            position: absolute;
+            bottom: -8px;
+            left: 10%;
+            width: 80%;
+            height: 3px;
+            background: linear-gradient(90deg, transparent, var(--accent-color), transparent);
+            border-radius: 2px;
+        }
+
+        .description {
+            font-size: clamp(0.9rem, 2vw, 1.1rem);
+            margin-bottom: clamp(20px, 3vw, 30px);
+            opacity: 0.8;
+            color: var(--primary-color);
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        /* ==========================================
+           CONTENEDOR DE CÁMARA
+           ========================================== */
+        .camera-container {
+            position: relative;
+            margin: clamp(20px, 4vw, 40px) auto;
+            max-width: 800px;
+            width: 100%;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: var(--shadow-light);
+            background: var(--light-gray);
+            aspect-ratio: 4/3;
+            max-height: 60vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 2px solid var(--medium-blue);
+        }
+
+        #webcam {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+            border-radius: 15px;
+            transform: scaleX(-1); /* Voltear horizontalmente para efecto espejo */
+        }
+
+        .camera-placeholder {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: var(--primary-color);
+            font-size: clamp(1.1rem, 3vw, 1.5rem);
+            opacity: 0.7;
+            text-align: center;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        .camera-placeholder-icon {
+            font-size: clamp(3rem, 6vw, 5rem);
+            margin-bottom: clamp(15px, 3vw, 25px);
+            color: var(--accent-color);
+        }
+
+        .camera-placeholder-text {
+            font-weight: 700;
+            max-width: 90%;
+            line-height: 1.4;
+        }
+
+        /* ==========================================
+           CONTROLES DE CÁMARA
+           ========================================== */
+        .camera-controls {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .camera-btn {
+            background: var(--accent-color);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: var(--shadow-blue);
+            transition: all var(--transition-speed) ease;
+            font-size: 1.2rem;
+        }
+
+        .camera-btn:hover {
+            transform: scale(1.1);
+            background: #1565c0;
+        }
+
+        .camera-btn:active {
+            transform: scale(0.95);
+        }
+
+        .camera-btn.hidden {
+            display: none;
+        }
+
+        /* ==========================================
+           RESULTADOS DE DETECCIÓN
+           ========================================== */
+        .result-container {
+            margin-top: clamp(25px, 4vw, 35px);
+            padding: clamp(20px, 3vw, 30px);
+            background: #ffffff;
+            border-radius: 15px;
+            backdrop-filter: blur(5px);
+            border: 1px solid var(--medium-blue);
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.05);
+        }
+
+        .result-title {
+            font-size: clamp(1.2rem, 3vw, 1.6rem);
+            margin-bottom: clamp(15px, 3vw, 25px);
+            color: var(--primary-color);
+            font-weight: 700;
+            position: relative;
+            display: inline-block;
+        }
+
+        .result-title::after {
+            content: '';
+            position: absolute;
+            bottom: -5px;
+            left: 25%;
+            width: 50%;
+            height: 2px;
+            background: var(--accent-color);
+            border-radius: 1px;
+        }
+
+        .result {
+            display: flex;
+            justify-content: space-around;
+            flex-wrap: wrap;
+            gap: clamp(15px, 3vw, 25px);
+            margin-top: clamp(15px, 3vw, 25px);
+        }
+
+        /* ==========================================
+           INDICADORES DE LUZ (ROJO, AMARILLO, VERDE)
+           ========================================== */
+        .light {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: clamp(15px, 3vw, 25px);
+            border-radius: 10px;
+            min-width: clamp(100px, 15vw, 150px);
+            flex: 1;
+            max-width: clamp(150px, 20vw, 220px);
+            transition: all var(--transition-speed) ease;
+            background: #ffffff;
+            border: 1px solid var(--medium-blue);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        }
+
+        .light.active {
+            transform: scale(1.05);
+            box-shadow: 0 5px 15px rgba(30, 136, 229, 0.15);
+            border: 2px solid var(--accent-color);
+        }
+
+        .light.red {
+            background: #fff5f5;
+        }
+
+        .light.yellow {
+            background: #fffff0;
+        }
+
+        .light.green {
+            background: #f0fff0;
+        }
+
+        .light-icon {
+            width: clamp(50px, 10vw, 70px);
+            height: clamp(50px, 10vw, 70px);
+            border-radius: var(--light-radius);
+            margin-bottom: clamp(10px, 2vw, 15px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: clamp(1.5rem, 4vw, 2.5rem);
+        }
+
+        .light.red .light-icon {
+            background: #ff0000;
+            box-shadow: 0 0 15px rgba(255, 0, 0, 0.5);
+        }
+
+        .light.yellow .light-icon {
+            background: #ffff00;
+            box-shadow: 0 0 15px rgba(255, 255, 0, 0.5);
+        }
+
+        .light.green .light-icon {
+            background: #00ff00;
+            box-shadow: 0 0 15px rgba(0, 255, 0, 0.5);
+        }
+
+        .confidence {
+            font-size: clamp(1rem, 2.5vw, 1.3rem);
+            font-weight: 700;
+            margin-top: clamp(5px, 1vw, 10px);
+            color: var(--primary-color);
+        }
+
+        .label {
+            font-size: clamp(0.9rem, 2vw, 1.1rem);
+            margin-bottom: clamp(5px, 1vw, 8px);
+            color: var(--primary-color);
+            font-weight: 700;
+        }
+
+        /* ==========================================
+           BOTONES Y CONTROLES
+           ========================================== */
+        .start-btn {
+            background: linear-gradient(45deg, var(--accent-color), #1565c0);
+            color: white;
+            border: none;
+            padding: clamp(15px, 3vw, 20px) clamp(30px, 5vw, 40px);
+            font-size: clamp(1rem, 2.5vw, 1.2rem);
+            border-radius: 50px;
+            cursor: pointer;
+            margin-top: clamp(20px, 4vw, 30px);
+            transition: all var(--transition-speed) ease;
+            box-shadow: var(--shadow-blue);
+            width: 100%;
+            max-width: 350px;
+            touch-action: manipulation;
+            font-weight: 700;
+            display: block;
+            margin-left: auto;
+            margin-right: auto;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .start-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+            transition: left 0.5s;
+        }
+
+        .start-btn:hover::before {
+            left: 100%;
+        }
+
+        .start-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(30, 136, 229, 0.4);
+            background: linear-gradient(45deg, #1565c0, var(--accent-color));
+        }
+
+        .start-btn:active {
+            transform: translateY(1px);
+        }
+
+        .status {
+            margin-top: clamp(15px, 3vw, 25px);
+            font-size: clamp(0.9rem, 2vw, 1.1rem);
+            color: var(--primary-color);
+            min-height: clamp(20px, 3vw, 30px);
+            font-weight: 700;
+        }
+
+        .error {
+            color: #d32f2f;
+            margin-top: clamp(10px, 2vw, 20px);
+            padding: clamp(10px, 2vw, 20px);
+            background: #ffebee;
+            border-radius: 8px;
+            display: none;
+            font-size: clamp(0.8rem, 1.8vw, 1rem);
+            border: 1px solid #ffcdd2;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        /* ==========================================
+           CONTROLES DE CONFIGURACIÓN
+           ========================================== */
+        .controls-container {
+            margin-top: clamp(20px, 4vw, 30px);
+            padding: clamp(15px, 3vw, 25px);
+            background: #ffffff;
+            border-radius: 10px;
+            backdrop-filter: blur(5px);
+            border: 1px solid var(--medium-blue);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .control-group {
+            margin-bottom: clamp(15px, 3vw, 25px);
+            text-align: left;
+        }
+
+        .control-label {
+            display: block;
+            margin-bottom: clamp(5px, 1vw, 10px);
+            font-size: clamp(0.9rem, 2vw, 1.1rem);
+            color: var(--primary-color);
+            font-weight: 700;
+        }
+
+        .slider-container {
+            display: flex;
+            align-items: center;
+            gap: clamp(10px, 2vw, 20px);
+        }
+
+        .slider {
+            flex: 1;
+            -webkit-appearance: none;
+            height: clamp(6px, 1vw, 10px);
+            border-radius: 5px;
+            background: var(--light-gray);
+            outline: none;
+        }
+
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: clamp(18px, 3vw, 24px);
+            height: clamp(18px, 3vw, 24px);
+            border-radius: 50%;
+            background: var(--accent-color);
+            cursor: pointer;
+            box-shadow: 0 2px 5px rgba(30, 136, 229, 0.5);
+            transition: all 0.2s ease;
+        }
+
+        .slider::-webkit-slider-thumb:hover {
+            transform: scale(1.1);
+            box-shadow: 0 2px 8px rgba(30, 136, 229, 0.7);
+        }
+
+        .slider::-moz-range-thumb {
+            width: clamp(18px, 3vw, 24px);
+            height: clamp(18px, 3vw, 24px);
+            border-radius: 50%;
+            background: var(--accent-color);
+            cursor: pointer;
+            box-shadow: 0 2px 5px rgba(30, 136, 229, 0.5);
+        }
+
+        .slider::-moz-range-thumb:hover {
+            transform: scale(1.1);
+            box-shadow: 0 2px 8px rgba(30, 136, 229, 0.7);
+        }
+
+        .slider-value {
+            min-width: clamp(40px, 5vw, 60px);
+            text-align: center;
+            font-weight: 700;
+            color: var(--primary-color);
+            font-size: clamp(0.9rem, 2vw, 1.2rem);
+            background: var(--light-blue);
+            padding: 5px 10px;
+            border-radius: 15px;
+        }
+
+        /* ==========================================
+           CONTROL DE VOZ (SWITCH)
+           ========================================== */
+        .voice-control {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: clamp(10px, 2vw, 20px);
+            margin-top: clamp(15px, 3vw, 25px);
+        }
+
+        .voice-toggle {
+            position: relative;
+            display: inline-block;
+            width: clamp(50px, 8vw, 70px);
+            height: clamp(24px, 4vw, 34px);
+        }
+
+        .voice-toggle input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .voice-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: var(--light-gray);
+            transition: .4s;
+            border-radius: 34px;
+        }
+
+        .voice-slider:before {
+            position: absolute;
+            content: "";
+            height: clamp(18px, 3vw, 26px);
+            width: clamp(18px, 3vw, 26px);
+            left: clamp(3px, 1vw, 4px);
+            bottom: clamp(3px, 1vw, 4px);
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        input:checked + .voice-slider {
+            background-color: var(--accent-color);
+        }
+
+        input:checked + .voice-slider:before {
+            transform: translateX(clamp(22px, 4vw, 36px));
+        }
+
+        .voice-label {
+            font-size: clamp(0.9rem, 2vw, 1.1rem);
+            display: flex;
+            align-items: center;
+            gap: clamp(5px, 1vw, 10px);
+            color: var(--primary-color);
+            font-weight: 700;
+        }
+
+        .voice-icon {
+            font-size: clamp(1.2rem, 3vw, 1.5rem);
+            color: var(--accent-color);
+        }
+
+        /* ==========================================
+           PIE DE PÁGINA
+           ========================================== */
+        .footer {
+            margin-top: clamp(20px, 4vw, 35px);
+            text-align: center;
+            font-size: clamp(0.8rem, 2vw, 1rem);
+            color: var(--primary-color);
+            opacity: 0.7;
+        }
+
+        /* ==========================================
+           MEDIA QUERIES PARA DIFERENTES DISPOSITIVOS
+           ========================================== */
+        
+        /* Tablets y dispositivos medianos */
+        @media (max-width: 1024px) and (min-width: 768px) {
+            /* Estilos específicos para tablets */
+            body {
+                padding: 15px;
+            }
+            
+            .container {
+                padding: 25px;
+                border-radius: 20px;
+            }
+
+            .camera-container {
+                max-height: 55vh;
+                border-radius: 15px;
+                aspect-ratio: 3/4; /* Más vertical en tablets */
+            }
+
+            .result {
+                gap: 20px;
+                flex-wrap: nowrap;
+            }
+
+            .light {
+                padding: 20px;
+                min-width: 120px;
+                max-width: 180px;
+            }
+
+            .light-icon {
+                width: 60px;
+                height: 60px;
+                font-size: 2rem;
+            }
+
+            .start-btn {
+                padding: 18px 35px;
+                font-size: 1.1rem;
+                max-width: 400px;
+            }
+
+            .camera-btn {
+                width: 60px;
+                height: 60px;
+                font-size: 1.4rem;
+            }
+
+            .controls-container {
+                padding: 20px;
+                max-width: 700px;
+            }
+
+            .control-label {
+                font-size: 1.1rem;
+                margin-bottom: 12px;
+            }
+
+            .slider {
+                height: 8px;
+            }
+
+            .slider::-webkit-slider-thumb {
+                width: 22px;
+                height: 22px;
+            }
+
+            .slider-value {
+                font-size: 1.1rem;
+                min-width: 50px;
+            }
+
+            .voice-control {
+                gap: 20px;
+            }
+
+            .voice-toggle {
+                width: 65px;
+                height: 30px;
+            }
+
+            .voice-slider:before {
+                width: 22px;
+                height: 22px;
+                left: 4px;
+                bottom: 4px;
+            }
+
+            input:checked + .voice-slider:before {
+                transform: translateX(35px);
+            }
+
+            .voice-label {
+                font-size: 1.1rem;
+            }
+
+            .voice-icon {
+                font-size: 1.4rem;
+            }
+
+            /* Optimización para orientación horizontal en tablets */
+            @media (orientation: landscape) {
+                .camera-container {
+                    max-height: 65vh;
+                    aspect-ratio: 16/9;
+                }
+                
+                .result {
+                    flex-direction: row;
+                    justify-content: space-evenly;
+                }
+                
+                .light {
+                    flex-direction: column;
+                }
+            }
+        }
+        
+        /* Tablets pequeñas y teléfonos grandes */
+        @media (max-width: 767px) and (min-width: 481px) {
+            body {
+                padding: 10px;
+            }
+
+            .container {
+                padding: 20px;
+                border-radius: 15px;
+            }
+
+            .camera-container {
+                max-height: 50vh;
+                border-radius: 12px;
+            }
+
+            .result {
+                gap: 15px;
+                flex-wrap: wrap;
+            }
+
+            .light {
+                padding: 15px;
+                min-width: 100px;
+                max-width: 150px;
+            }
+
+            .light-icon {
+                width: 50px;
+                height: 50px;
+                font-size: 1.8rem;
+            }
+
+            .start-btn {
+                padding: 15px 30px;
+                font-size: 1rem;
+                max-width: 350px;
+            }
+
+            .controls-container {
+                padding: 15px;
+            }
+
+            .control-label {
+                font-size: 1rem;
+                margin-bottom: 10px;
+            }
+
+            .slider {
+                height: 6px;
+            }
+
+            .slider::-webkit-slider-thumb {
+                width: 18px;
+                height: 18px;
+            }
+
+            .slider-value {
+                font-size: 1rem;
+                min-width: 45px;
+            }
+
+            .voice-control {
+                flex-direction: row;
+                gap: 15px;
+            }
+
+            .voice-toggle {
+                width: 55px;
+                height: 28px;
+            }
+
+            .voice-slider:before {
+                width: 20px;
+                height: 20px;
+                left: 4px;
+                bottom: 4px;
+            }
+
+            input:checked + .voice-slider:before {
+                transform: translateX(27px);
+            }
+
+            .voice-label {
+                font-size: 1rem;
+            }
+
+            .voice-icon {
+                font-size: 1.2rem;
+            }
+        }
+
+        /* Teléfonos y dispositivos pequeños */
+        @media (max-width: 480px) {
+            body {
+                padding: 10px;
+            }
+
+            .container {
+                padding: 15px;
+                border-radius: 12px;
+            }
+
+            .result {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .light {
+                width: 100%;
+                max-width: clamp(200px, 40vw, 300px);
+                flex-direction: row;
+                justify-content: flex-start;
+                padding: 15px 20px;
+                border-radius: 10px;
+            }
+
+            .light-icon {
+                margin-right: 20px;
+                margin-bottom: 0;
+            }
+
+            .light-info {
+                display: flex;
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .confidence {
+                margin-top: 5px;
+            }
+
+            .controls-container {
+                padding: 15px;
+            }
+
+            .voice-control {
+                flex-direction: column;
+                gap: 12px;
+            }
+
+            .camera-placeholder {
+                font-size: 1.1rem;
+                padding: 15px;
+            }
+        }
+
+        /* Pantallas grandes y laptops */
+        @media (min-width: 1025px) {
+            .container {
+                max-width: 1100px;
+            }
+
+            .light {
+                max-width: 200px;
+            }
+            
+            .camera-container {
+                max-height: 65vh;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="main-container">
+        <!-- ==========================================
+             CONTENEDOR PRINCIPAL DE LA APLICACIÓN
+             ========================================== -->
+        <div class="container">
+            <header>
+                <h1>Reconocedor de Semáforos</h1>
+                <p class="description">Apunta tu cámara a un semáforo para detectar el color activo</p>
+            </header>
+
+            <main>
+                <!-- Contenedor para la cámara y el video -->
+                <section class="camera-container">
+                    <video id="webcam" autoplay playsinline></video>
+                    <canvas id="canvas" style="display:none;"></canvas>
+                    <div class="camera-placeholder" id="cameraPlaceholder">
+                        <div class="camera-placeholder-icon">📷</div>
+                        <div class="camera-placeholder-text">Presiona "Iniciar Detección" para usar la cámara</div>
+                    </div>
+                </section>
+
+                <!-- Controles de cámara -->
+                <div class="camera-controls">
+                    <button id="switchCameraBtn" class="camera-btn hidden" title="Cambiar cámara">
+                        🔄
+                    </button>
+                </div>
+
+                <!-- Botón principal para iniciar/detener la detección -->
+                <button id="startButton" class="start-btn">Iniciar Detección</button>
+
+                <!-- Mensajes de estado y error -->
+                <div class="status" id="status">Presiona el botón para comenzar</div>
+                <div class="error" id="error"></div>
+
+                <!-- Control para activar/desactivar voz -->
+                <div class="voice-control">
+                    <label class="voice-label">
+                        <span class="voice-icon">🔊</span>
+                        Activar Voz Femenina
+                    </label>
+                    <label class="voice-toggle">
+                        <input type="checkbox" id="voiceToggle" checked>
+                        <span class="voice-slider"></span>
+                    </label>
+                </div>
+
+                <!-- Controles de configuración -->
+                <section class="controls-container">
+                    <div class="control-group">
+                        <label class="control-label">Umbral de Confianza:</label>
+                        <div class="slider-container">
+                            <input type="range" min="0" max="100" value="60" class="slider" id="confidenceThreshold">
+                            <span class="slider-value" id="thresholdValue">60%</span>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Resultados de la detección -->
+                <section class="result-container">
+                    <h2 class="result-title">Resultado:</h2>
+                    <div class="result">
+                        <!-- Indicador de luz roja -->
+                        <article class="light red" id="redLight">
+                            <div class="light-icon">🔴</div>
+                            <div class="light-info">
+                                <div class="label">Rojo</div>
+                                <div class="confidence" id="redConfidence">0%</div>
+                            </div>
+                        </article>
+
+                        <!-- Indicador de luz amarilla -->
+                        <article class="light yellow" id="yellowLight">
+                            <div class="light-icon">🟡</div>
+                            <div class="light-info">
+                                <div class="label">Amarillo</div>
+                                <div class="confidence" id="yellowConfidence">0%</div>
+                            </div>
+                        </article>
+
+                        <!-- Indicador de luz verde -->
+                        <article class="light green" id="greenLight">
+                            <div class="light-icon">🟢</div>
+                            <div class="light-info">
+                                <div class="label">Verde</div>
+                                <div class="confidence" id="greenConfidence">0%</div>
+                            </div>
+                        </article>
+                    </div>
+                </section>
+            </main>
+        </div>
+
+        <!-- Pie de página -->
+        <footer class="footer">
+            <p>Reconocedor de Semáforos con IA • Funciona en cualquier dispositivo</p>
+        </footer>
+    </div>
+
+    <!-- ==========================================
+         BIBLIOTECAS EXTERNAS
+         ========================================== -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
+    
+    <script>
+        /**
+         * ===========================================
+         * RECONOCEDOR DE SEMÁFOROS CON IA
+         * ===========================================
+         * 
+         * Aplicación web que utiliza Teachable Machine de Google para reconocer
+         * los colores de un semáforo (rojo, amarillo y verde) mediante la cámara
+         * del dispositivo. La aplicación está diseñada para funcionar en laptops,
+         * tablets y teléfonos con una interfaz completamente responsiva.
+         * 
+         * CARACTERÍSTICAS PRINCIPALES:
+         * - Detección en tiempo real de colores de semáforo
+         * - Anuncios de voz femenina fluida para accesibilidad
+         * - Interfaz responsiva optimizada para todos los dispositivos
+         * - Registro de detecciones en consola para depuración
+         * - Configuración ajustable de umbral de confianza
+         * - Selección automática de cámara trasera en dispositivos móviles
+         * - Posibilidad de cambiar entre cámaras disponibles
+         * - Optimización especial para tablets Android e iOS
+         * 
+         * TECNOLOGÍAS UTILIZADAS:
+         * - TensorFlow.js para aprendizaje automático en el navegador
+         * - Teachable Machine para entrenamiento del modelo
+         * - Web Speech API para síntesis de voz femenina
+         * - CSS moderno con variables y consultas de medios
+         * - JavaScript ES6+ con buenas prácticas
+         * 
+         * @author      Tu Nombre
+         * @version     1.0.0
+         * @license     MIT
+         * @copyright   Año Actual
+         */
+
+        // ===========================================
+        // CONFIGURACIÓN INICIAL
+        // ===========================================
+        
+        /**
+         * URL del modelo entrenado de Teachable Machine
+         * Para cambiar el modelo, modifica esta URL
+         * @type {string}
+         */
+        const MODEL_URL = "https://teachablemachine.withgoogle.com/models/F_LnhxOw-/";
+        
+        /**
+         * Variables globales para el estado de la aplicación
+         */
+        let model = null;              // Modelo de IA cargado
+        let webcam = null;             // Objeto de la cámara
+        let video = null;              // Elemento de video
+        let canvas = null;             // Elemento de canvas
+        let ctx = null;                // Contexto de canvas
+        let maxPredictions = 0;        // Número de clases del modelo
+        let isDetecting = false;        // Estado de detección activa/inactiva
+        let confidenceThreshold = 60;   // Umbral de confianza para detecciones
+        let lastDetectedColor = "";     // Último color detectado
+        let voiceEnabled = true;        // Estado de los anuncios de voz
+        let lastVoiceTime = 0;         // Timestamp del último anuncio de voz
+        let lastLogTime = 0;           // Timestamp del último registro en consola
+        let stableDetectionCount = 0;  // Contador para detecciones estables
+        let currentStableColor = "";    // Color actualmente estable
+        let animationId = null;        // ID de la animación para cancelar
+        let currentCameraId = null;    // ID de la cámara actual
+        let cameras = [];              // Lista de cámaras disponibles
+        let currentFacingMode = null;   // facingMode actual ('user' o 'environment')
+        
+        /**
+         * Constantes de configuración
+         */
+        const VOICE_COOLDOWN = 3000;    // 3 segundos entre anuncios de voz
+        const LOG_COOLDOWN = 2000;      // 2 segundos entre registros en consola
+        const STABLE_DETECTION_THRESHOLD = 3; // Número de detecciones consecutivas para considerar estable
+        
+        // ===========================================
+        // ELEMENTOS DEL DOM
+        // ===========================================
+        
+        /**
+         * Referencias a los elementos del DOM
+         * Se obtienen al inicio para evitar consultas repetidas al DOM
+         */
+        const elements = {
+            startButton: null,
+            status: null,
+            error: null,
+            redLight: null,
+            yellowLight: null,
+            greenLight: null,
+            redConfidence: null,
+            yellowConfidence: null,
+            greenConfidence: null,
+            confidenceThreshold: null,
+            thresholdValue: null,
+            voiceToggle: null,
+            cameraPlaceholder: null,
+            webcam: null,
+            canvas: null,
+            switchCameraBtn: null
+        };
+
+        // ===========================================
+        // INICIALIZACIÓN DE LA APLICACIÓN
+        // ===========================================
+        
+        /**
+         * Función de inicialización que se ejecuta al cargar la página
+         */
+        function initializeApp() {
+            // Mostrar información de configuración en la consola
+            console.log(`[CONFIG] URL del modelo: ${MODEL_URL}`);
+            console.log("[INFO] Iniciando aplicación Reconocedor de Semáforos");
+            console.log("[INFO] Dispositivo detectado:", getDeviceInfo());
+            
+            // Inicializar elementos del DOM
+            try {
+                // Obtener todos los elementos necesarios
+                elements.startButton = document.getElementById('startButton');
+                elements.status = document.getElementById('status');
+                elements.error = document.getElementById('error');
+                elements.redLight = document.getElementById('redLight');
+                elements.yellowLight = document.getElementById('yellowLight');
+                elements.greenLight = document.getElementById('greenLight');
+                elements.redConfidence = document.getElementById('redConfidence');
+                elements.yellowConfidence = document.getElementById('yellowConfidence');
+                elements.greenConfidence = document.getElementById('greenConfidence');
+                elements.confidenceThreshold = document.getElementById('confidenceThreshold');
+                elements.thresholdValue = document.getElementById('thresholdValue');
+                elements.voiceToggle = document.getElementById('voiceToggle');
+                elements.cameraPlaceholder = document.getElementById('cameraPlaceholder');
+                elements.webcam = document.getElementById('webcam');
+                elements.canvas = document.getElementById('canvas');
+                elements.switchCameraBtn = document.getElementById('switchCameraBtn');
+                
+                // Verificar que todos los elementos existan
+                for (const [key, element] of Object.entries(elements)) {
+                    if (!element) {
+                        throw new Error(`Elemento no encontrado: ${key}`);
+                    }
+                }
+                
+                console.log("[INFO] Todos los elementos del DOM encontrados correctamente");
+                
+                // Inicializar variables críticas
+                video = elements.webcam;
+                canvas = elements.canvas;
+                ctx = canvas.getContext('2d');
+                
+                // Configurar event listeners
+                setupEventListeners();
+                
+                // Inicializar interfaz
+                resetInterface();
+                
+                // Verificar soporte para getUserMedia
+                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                    showError("Tu navegador no soporta el acceso a la cámara. Por favor, usa un navegador más moderno.");
+                    elements.startButton.disabled = true;
+                    return;
+                }
+                
+                // Cargar las voces disponibles (para síntesis de voz)
+                if ('speechSynthesis' in window) {
+                    // Esperar a que las voces estén cargadas
+                    window.speechSynthesis.onvoiceschanged = () => {
+                        console.log("[INFO] Voces cargadas:", window.speechSynthesis.getVoices().length);
+                    };
+                }
+                
+                console.log("[INFO] Aplicación inicializada correctamente");
+                
+            } catch (error) {
+                console.error("[ERROR] Error durante la inicialización:", error);
+                showError(`Error crítico: ${error.message}`);
+            }
+        }
+        
+        /**
+         * Detecta el tipo de dispositivo y entorno para optimización
+         * @returns {Object} Objeto con información del dispositivo y entorno
+         */
+        function getDeviceInfo() {
+            const userAgent = navigator.userAgent || navigator.vendor || window.opera;
+            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(userAgent);
+            
+            let deviceType = "Escritorio";
+            let os = "Desconocido";
+            let isTablet = false;
+            
+            // Detectar sistema operativo
+            if (/Windows/.test(userAgent)) {
+                os = "Windows";
+            } else if (/Macintosh/.test(userAgent)) {
+                os = "macOS";
+            } else if (/Linux/.test(userAgent)) {
+                os = "Linux";
+            } else if (/Android/.test(userAgent)) {
+                os = "Android";
+                deviceType = "Móvil";
+                // Detectar si es una tablet Android
+                if (!/Mobile/.test(userAgent)) {
+                    isTablet = true;
+                    deviceType = "Tablet";
+                }
+            } else if (/iPad|iPhone|iPod/.test(userAgent) && !window.MSStream) {
+                os = "iOS";
+                deviceType = "Móvil";
+                // Detectar si es una iPad
+                if (/iPad/.test(userAgent)) {
+                    isTablet = true;
+                    deviceType = "Tablet";
+                }
+            }
+            
+            // Detectar navegador
+            let browser = "Desconocido";
+            if (/Chrome/.test(userAgent) && !/Chromium|Edge/.test(userAgent)) {
+                browser = "Chrome";
+            } else if (/Firefox/.test(userAgent)) {
+                browser = "Firefox";
+            } else if (/Safari/.test(userAgent) && !/Chrome/.test(userAgent)) {
+                browser = "Safari";
+            } else if (/Edge/.test(userAgent)) {
+                browser = "Edge";
+            } else if (/Chromium/.test(userAgent)) {
+                browser = "Chromium";
+            }
+            
+            // Detectar orientación para tablets
+            const isLandscape = window.innerWidth > window.innerHeight;
+            
+            return {
+                deviceType,
+                os,
+                browser,
+                isMobile,
+                isTablet,
+                isLandscape,
+                userAgent: userAgent.substring(0, 100) + "..."
+            };
+        }
+
+        // ===========================================
+        // CONFIGURACIÓN DE EVENT LISTENERS
+        // ===========================================
+        
+        /**
+         * Configura todos los event listeners de la aplicación
+         */
+        function setupEventListeners() {
+            try {
+                // Verificar que los elementos necesarios existan
+                if (!elements.startButton || !elements.voiceToggle || 
+                    !elements.confidenceThreshold || !elements.switchCameraBtn ||
+                    !video || !canvas) {
+                    throw new Error("No se pudieron encontrar los elementos necesarios para configurar event listeners");
+                }
+                
+                // Event listener para el botón principal
+                elements.startButton.addEventListener('click', handleStartStop);
+                
+                // Event listener para el control de voz
+                elements.voiceToggle.addEventListener('change', handleVoiceToggle);
+                
+                // Event listener para el slider de umbral de confianza
+                elements.confidenceThreshold.addEventListener('input', handleThresholdChange);
+                
+                // Event listener para el botón de cambiar cámara
+                elements.switchCameraBtn.addEventListener('click', handleSwitchCamera);
+                
+                // Event listener para cuando el video esté listo
+                video.addEventListener('loadeddata', onVideoLoaded);
+                
+                // Event listeners para cambios de ventana
+                window.addEventListener('resize', handleResize);
+                window.addEventListener('orientationchange', handleOrientationChange);
+                
+                console.log("[INFO] Event listeners configurados correctamente");
+                
+            } catch (error) {
+                console.error("[ERROR] Error al configurar event listeners:", error);
+                throw error;
+            }
+        }
+        
+        /**
+         * Maneja el evento de inicio/detención de la detección
+         */
+        async function handleStartStop() {
+            try {
+                if (!isDetecting) {
+                    await startDetection();
+                } else {
+                    stopDetection();
+                }
+            } catch (error) {
+                console.error("[ERROR] Error en handleStartStop:", error);
+                showError("Error al iniciar/detener la detección.");
+            }
+        }
+        
+        /**
+         * Maneja el cambio en el control de voz
+         */
+        function handleVoiceToggle() {
+            try {
+                voiceEnabled = elements.voiceToggle.checked;
+                console.log(`[INFO] Voz ${voiceEnabled ? 'activada' : 'desactivada'}`);
+            } catch (error) {
+                console.error("[ERROR] Error en handleVoiceToggle:", error);
+            }
+        }
+        
+        /**
+         * Maneja el cambio en el umbral de confianza
+         */
+        function handleThresholdChange() {
+            try {
+                confidenceThreshold = parseInt(elements.confidenceThreshold.value);
+                elements.thresholdValue.textContent = `${confidenceThreshold}%`;
+                console.log(`[INFO] Umbral de confianza ajustado a ${confidenceThreshold}%`);
+            } catch (error) {
+                console.error("[ERROR] Error en handleThresholdChange:", error);
+            }
+        }
+        
+        /**
+         * Maneja el evento para cambiar de cámara
+         */
+        async function handleSwitchCamera() {
+            try {
+                if (cameras.length < 2) return;
+                
+                // Detener la detección actual
+                stopDetection();
+                
+                // Cambiar al facingMode opuesto
+                currentFacingMode = currentFacingMode === 'user' ? 'environment' : 'user';
+                
+                // Actualizar el ID de la cámara
+                const newCamera = cameras.find(camera => 
+                    currentFacingMode === 'environment' ? 
+                    (camera.label.toLowerCase().includes('back') || camera.label.toLowerCase().includes('trasera')) :
+                    (camera.label.toLowerCase().includes('front') || camera.label.toLowerCase().includes('frontal'))
+                );
+                
+                if (newCamera) {
+                    currentCameraId = newCamera.deviceId;
+                }
+                
+                // Reiniciar la detección con la nueva cámara
+                await startDetection();
+            } catch (error) {
+                console.error("[ERROR] Error en handleSwitchCamera:", error);
+                showError("Error al cambiar de cámara.");
+            }
+        }
+        
+        /**
+         * Maneja el evento cuando el video está cargado
+         */
+        function onVideoLoaded() {
+            try {
+                console.log("[INFO] Video cargado y listo");
+                // Ajustar el tamaño del canvas al tamaño del video
+                if (canvas && video) {
+                    canvas.width = video.videoWidth;
+                    canvas.height = video.videoHeight;
+                }
+            } catch (error) {
+                console.error("[ERROR] Error en onVideoLoaded:", error);
+            }
+        }
+        
+        /**
+         * Maneja cambios en el tamaño de la ventana
+         */
+        function handleResize() {
+            try {
+                const deviceInfo = getDeviceInfo();
+                console.log("[INFO] Cambio de tamaño de ventana detectado", deviceInfo);
+                
+                if (isDetecting && video && canvas) {
+                    // Ajustar el tamaño del canvas al tamaño del video
+                    canvas.width = video.videoWidth;
+                    canvas.height = video.videoHeight;
+                    
+                    // Para tablets, ajustar la interfaz según la orientación
+                    if (deviceInfo.isTablet) {
+                        adjustTabletInterface(deviceInfo.isLandscape);
+                    }
+                }
+            } catch (error) {
+                console.error("[ERROR] Error en handleResize:", error);
+            }
+        }
+        
+        /**
+         * Maneja cambios en la orientación del dispositivo
+         */
+        function handleOrientationChange() {
+            try {
+                console.log('[INFO] Cambio de orientación detectado');
+                
+                // Pequeña demora para permitir que el navegador se reoriente
+                setTimeout(() => {
+                    if (isDetecting && video && canvas) {
+                        // Ajustar el tamaño del canvas al tamaño del video
+                        canvas.width = video.videoWidth;
+                        canvas.height = video.videoHeight;
+                        
+                        // Para tablets, ajustar la interfaz según la orientación
+                        const deviceInfo = getDeviceInfo();
+                        if (deviceInfo.isTablet) {
+                            adjustTabletInterface(deviceInfo.isLandscape);
+                        }
+                    }
+                }, 500);
+            } catch (error) {
+                console.error("[ERROR] Error en handleOrientationChange:", error);
+            }
+        }
+
+        // ===========================================
+        // FUNCIONES PRINCIPALES
+        // ===========================================
+        
+        /**
+         * Inicia el proceso de detección
+         * Carga el modelo y activa la cámara
+         */
+        async function startDetection() {
+            try {
+                hideError();
+                updateStatus("Cargando modelo...");
+                console.log("[INFO] Iniciando carga del modelo");
+                
+                // Verificar que el modelo sea accesible
+                try {
+                    const modelURL = MODEL_URL + "model.json";
+                    const metadataURL = MODEL_URL + "metadata.json";
+                    
+                    console.log("[INFO] Verificando URLs del modelo:");
+                    console.log("- Model URL:", modelURL);
+                    console.log("- Metadata URL:", metadataURL);
+                    
+                    // Verificar que las URLs sean accesibles
+                    const modelResponse = await fetch(modelURL, { method: 'HEAD' });
+                    if (!modelResponse.ok) {
+                        throw new Error(`No se puede acceder al modelo: ${modelResponse.status} ${modelResponse.statusText}`);
+                    }
+                    
+                    const metadataResponse = await fetch(metadataURL, { method: 'HEAD' });
+                    if (!metadataResponse.ok) {
+                        throw new Error(`No se puede acceder a los metadatos: ${metadataResponse.status} ${metadataResponse.statusText}`);
+                    }
+                    
+                    console.log("[INFO] URLs del modelo verificadas correctamente");
+                    
+                    // Cargar el modelo desde Teachable Machine
+                    model = await tmImage.load(modelURL, metadataURL);
+                    maxPredictions = model.getTotalClasses();
+                    
+                    updateStatus("Modelo cargado. Iniciando cámara...");
+                    console.log(`[INFO] Modelo cargado con ${maxPredictions} clases`);
+                    
+                    // Configurar la cámara
+                    await setupCamera();
+                    
+                    // Actualizar estado de la interfaz
+                    updateStatus("Detección activa");
+                    isDetecting = true;
+                    elements.startButton.textContent = "Detener Detección";
+                    console.log("[INFO] Cámara iniciada y detección activa");
+                    
+                    // Iniciar el bucle de predicción
+                    predictionLoop();
+                    
+                } catch (modelError) {
+                    console.error("[ERROR] Error al cargar el modelo:", modelError);
+                    showError(`Error al cargar el modelo: ${modelError.message}. Verifica que la URL del modelo sea correcta.`);
+                    return;
+                }
+                
+            } catch (error) {
+                console.error("[ERROR] Error general en startDetection:", error);
+                showError("No se pudo iniciar la detección. Verifica la conexión a internet y los permisos de la cámara.");
+            }
+        }
+        
+        /**
+         * Detiene el proceso de detección
+         * Libera recursos y reinicia la interfaz
+         */
+        function stopDetection() {
+            try {
+                if (isDetecting) {
+                    isDetecting = false;
+                    
+                    // Cancelar la animación si está en curso
+                    if (animationId) {
+                        cancelAnimationFrame(animationId);
+                        animationId = null;
+                    }
+                    
+                    // Detener el stream de la cámara
+                    if (video && video.srcObject) {
+                        const tracks = video.srcObject.getTracks();
+                        tracks.forEach(track => track.stop());
+                        video.srcObject = null;
+                    }
+                    
+                    updateStatus("Detección detenida");
+                    elements.startButton.textContent = "Iniciar Detección";
+                    console.log("[INFO] Detección detenida");
+                    
+                    // Resetear resultados
+                    resetResults();
+                    
+                    // Mostrar placeholder de cámara
+                    if (elements.cameraPlaceholder) {
+                        elements.cameraPlaceholder.style.display = 'flex';
+                    }
+                }
+            } catch (error) {
+                console.error("[ERROR] Error en stopDetection:", error);
+            }
+        }
+        
+        /**
+         * Configura y activa la cámara
+         */
+        async function setupCamera() {
+            const deviceInfo = getDeviceInfo();
+            console.log("[INFO] Configurando cámara para:", deviceInfo);
+            
+            try {
+                // Verificar que el elemento video exista
+                if (!video) {
+                    throw new Error("Elemento de video no encontrado");
+                }
+                
+                // Determinar el facingMode inicial según el dispositivo
+                if (deviceInfo.isMobile || deviceInfo.isTablet) {
+                    // En dispositivos móviles y tablets, usar la cámara trasera por defecto
+                    currentFacingMode = 'environment';
+                } else {
+                    // En dispositivos de escritorio, usar la cámara frontal por defecto
+                    currentFacingMode = 'user';
+                }
+                
+                // Obtener las cámaras disponibles
+                await getAvailableCameras();
+                
+                // Configurar constraints para la cámara según el dispositivo
+                let constraints = {
+                    video: {
+                        width: { ideal: 640 },
+                        height: { ideal: 480 },
+                        facingMode: currentFacingMode
+                    }
+                };
+                
+                // Ajustes específicos para tablets
+                if (deviceInfo.isTablet) {
+                    // Para tablets, usar una resolución más alta
+                    constraints.video.width = { ideal: 1280 };
+                    constraints.video.height = { ideal: 720 };
+                    
+                    // En tablets iPad, ajustes adicionales
+                    if (deviceInfo.os === "iOS") {
+                        constraints.video.width = { ideal: 1920 };
+                        constraints.video.height = { ideal: 1080 };
+                    }
+                }
+                
+                // Si tenemos un ID de cámara específico, usarlo
+                if (currentCameraId) {
+                    constraints.video.deviceId = { exact: currentCameraId };
+                }
+                
+                // Para Safari en macOS, ajustar las restricciones
+                if (deviceInfo.os === "macOS" && deviceInfo.browser === "Safari") {
+                    constraints.video.width = { ideal: 1280 };
+                    constraints.video.height = { ideal: 720 };
+                }
+                
+                // Para Linux, a veces es necesario especificar el dispositivo de video
+                if (deviceInfo.os === "Linux") {
+                    constraints.video = {
+                        width: { ideal: 640 },
+                        height: { ideal: 480 },
+                        facingMode: "user"
+                    };
+                }
+                
+                console.log("[INFO] Constraints de cámara:", constraints);
+                
+                // Solicitar acceso a la cámara
+                const stream = await navigator.mediaDevices.getUserMedia(constraints);
+                console.log("[INFO] Stream de cámara obtenido correctamente");
+                
+                // Detener cualquier stream existente
+                if (video.srcObject) {
+                    const oldTracks = video.srcObject.getTracks();
+                    oldTracks.forEach(track => track.stop());
+                }
+                
+                // Asignar el stream al elemento de video
+                video.srcObject = stream;
+                
+                // Esperar a que el video esté listo
+                await new Promise((resolve, reject) => {
+                    video.onloadedmetadata = () => {
+                        video.play().then(resolve).catch(reject);
+                    };
+                    
+                    // Timeout por si el video nunca se carga
+                    setTimeout(() => {
+                        reject(new Error("Timeout al cargar el video"));
+                    }, 10000);
+                });
+                
+                console.log("[INFO] Video reproduciéndose correctamente");
+                
+                // Ocultar placeholder
+                if (elements.cameraPlaceholder) {
+                    elements.cameraPlaceholder.style.display = 'none';
+                }
+                
+                // Ajustar el tamaño del canvas al tamaño del video
+                if (canvas) {
+                    canvas.width = video.videoWidth;
+                    canvas.height = video.videoHeight;
+                }
+                
+                console.log("[INFO] Dimensiones del video:", video.videoWidth, "x", video.videoHeight);
+                
+                // Para tablets, ajustar la interfaz según la orientación
+                if (deviceInfo.isTablet) {
+                    adjustTabletInterface(deviceInfo.isLandscape);
+                }
+                
+                console.log("[INFO] Cámara configurada exitosamente");
+                
+            } catch (error) {
+                console.error("[ERROR] Error al acceder a la cámara:", error);
+                
+                // Intentar con la otra cámara si falla
+                if ((deviceInfo.isMobile || deviceInfo.isTablet) && currentFacingMode === 'environment') {
+                    console.log("[INFO] Intentando con cámara frontal");
+                    currentFacingMode = 'user';
+                    
+                    try {
+                        const stream = await navigator.mediaDevices.getUserMedia({
+                            video: {
+                                width: { ideal: 640 },
+                                height: { ideal: 480 },
+                                facingMode: 'user'
+                            }
+                        });
+                        
+                        // Detener cualquier stream existente
+                        if (video.srcObject) {
+                            const oldTracks = video.srcObject.getTracks();
+                            oldTracks.forEach(track => track.stop());
+                        }
+                        
+                        video.srcObject = stream;
+                        
+                        await new Promise((resolve, reject) => {
+                            video.onloadedmetadata = () => {
+                                video.play().then(resolve).catch(reject);
+                            };
+                            
+                            setTimeout(() => {
+                                reject(new Error("Timeout al cargar el video"));
+                            }, 10000);
+                        });
+                        
+                        if (elements.cameraPlaceholder) {
+                            elements.cameraPlaceholder.style.display = 'none';
+                        }
+                        
+                        if (canvas) {
+                            canvas.width = video.videoWidth;
+                            canvas.height = video.videoHeight;
+                        }
+                        
+                        // Para tablets, ajustar la interfaz según la orientación
+                        if (deviceInfo.isTablet) {
+                            adjustTabletInterface(deviceInfo.isLandscape);
+                        }
+                        
+                        console.log("[INFO] Cámara frontal configurada exitosamente");
+                        return;
+                    } catch (secondError) {
+                        console.error("[ERROR] Error al acceder a la cámara frontal:", secondError);
+                    }
+                }
+                
+                // Mensajes de error específicos según el dispositivo
+                let errorMessage = "No se pudo acceder a la cámara. ";
+                
+                if (error.name === 'NotAllowedError') {
+                    errorMessage += "Por favor, permite el acceso a la cámara cuando se te solicite.";
+                } else if (error.name === 'NotFoundError') {
+                    errorMessage += "No se encontró ninguna cámara. Verifica que tu dispositivo tenga una cámara conectada.";
+                } else if (error.name === 'NotReadableError') {
+                    errorMessage += "La cámara está siendo utilizada por otra aplicación.";
+                } else if (error.name === 'OverconstrainedError') {
+                    errorMessage += "No se pudo satisfacer las restricciones de la cámara. Intenta con otra configuración.";
+                } else if (error.name === 'TimeoutError') {
+                    errorMessage += "Tiempo de espera agotado al intentar acceder a la cámara.";
+                } else if (deviceInfo.os === "macOS" && deviceInfo.browser === "Safari") {
+                    errorMessage += "En Safari, asegúrate de haber permitido el acceso a la cámara en Preferencias del Sistema > Seguridad y Privacidad > Privacidad.";
+                } else if (deviceInfo.os === "Windows" && deviceInfo.browser === "Edge") {
+                    errorMessage += "En Edge, verifica que la cámara esté activada en la configuración de privacidad de Windows.";
+                } else if (deviceInfo.os === "Linux") {
+                    errorMessage += "En Linux, verifica que la cámara esté correctamente conectada y que los permisos estén configurados.";
+                } else if (deviceInfo.isTablet) {
+                    errorMessage += "En tu tablet, verifica que la cámara esté funcionando correctamente y que has dado permiso para usarla.";
+                } else {
+                    errorMessage += `${error.message}. Verifica los permisos y que no esté en uso por otra aplicación.`;
+                }
+                
+                throw new Error(errorMessage);
+            }
+        }
+        
+        /**
+         * Obtiene las cámaras disponibles en el dispositivo
+         */
+        async function getAvailableCameras() {
+            try {
+                // Primero, necesitamos obtener permiso para acceder a las cámaras
+                await navigator.mediaDevices.getUserMedia({ video: true });
+                
+                // Ahora podemos enumerar las cámaras
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                cameras = devices.filter(device => device.kind === 'videoinput');
+                
+                console.log("[INFO] Cámaras disponibles:", cameras);
+                
+                // Si hay múltiples cámaras, mostrar el botón para cambiar
+                if (cameras.length > 1 && elements.switchCameraBtn) {
+                    elements.switchCameraBtn.classList.remove('hidden');
+                    
+                    // Buscar la cámara trasera si estamos en un dispositivo móvil o tablet
+                    const deviceInfo = getDeviceInfo();
+                    if (deviceInfo.isMobile || deviceInfo.isTablet) {
+                        const rearCamera = cameras.find(camera => 
+                            camera.label.toLowerCase().includes('back') || 
+                            camera.label.toLowerCase().includes('trasera')
+                        );
+                        
+                        if (rearCamera) {
+                            currentCameraId = rearCamera.deviceId;
+                        }
+                    }
+                } else if (elements.switchCameraBtn) {
+                    elements.switchCameraBtn.classList.add('hidden');
+                }
+                
+            } catch (error) {
+                console.error("[ERROR] Error al obtener cámaras:", error);
+                cameras = [];
+            }
+        }
+        
+        /**
+         * Ajusta la interfaz para tablets según la orientación
+         * @param {boolean} isLandscape - Si la orientación es horizontal
+         */
+        function adjustTabletInterface(isLandscape) {
+            console.log(`[INFO] Ajustando interfaz de tablet - Orientación: ${isLandscape ? 'Horizontal' : 'Vertical'}`);
+            
+            // Aquí se pueden hacer ajustes dinámicos en la interfaz según la orientación
+            // Por ejemplo, cambiar el tamaño de los elementos o su disposición
+            // Estos ajustes ya están implementados principalmente en CSS con media queries
+        }
+        
+        /**
+         * Bucle principal de predicción
+         * Se ejecuta continuamente para procesar cada frame
+         */
+        function predictionLoop() {
+            if (!isDetecting) return;
+            
+            try {
+                // Dibujar el frame actual del video en el canvas
+                if (ctx && video && canvas) {
+                    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                    
+                    // Realizar la predicción
+                    predictColors();
+                }
+                
+                // Continuar el bucle
+                animationId = requestAnimationFrame(predictionLoop);
+                
+            } catch (error) {
+                console.error("[ERROR] Error en el bucle de predicción:", error);
+                showError("Error durante la detección. Intenta reiniciar la aplicación.");
+                stopDetection();
+            }
+        }
+        
+        /**
+         * Procesa la imagen actual y determina los colores detectados
+         */
+        async function predictColors() {
+            try {
+                if (!model) {
+                    console.error("[ERROR] Modelo no cargado");
+                    return;
+                }
+                
+                // Obtener predicciones del modelo
+                const predictions = await model.predict(canvas);
+                
+                // Resetear estados visuales
+                resetLightStates();
+                
+                // Procesar predicciones y encontrar la más confiable
+                const result = processPredictions(predictions);
+                
+                // Actualizar interfaz con los resultados
+                updateInterface(result);
+                
+                // Registrar en consola para depuración
+                logPredictions(result);
+                
+                // Manejar detecciones estables y anuncios de voz
+                handleStableDetection(result);
+                
+            } catch (error) {
+                console.error("[ERROR] Error en la predicción:", error);
+            }
+        }
+        
+        /**
+         * Procesa las predicciones del modelo y encuentra la más confiable
+         * @param {Array} predictions - Array de predicciones del modelo
+         * @returns {Object} Objeto con la predicción más confiable
+         */
+        function processPredictions(predictions) {
+            let maxConfidence = 0;
+            let predictedClass = "";
+            const confidences = {
+                "Rojo": 0,
+                "Amarillo": 0,
+                "Verde": 0
+            };
+            
+            // Analizar cada predicción
+            for (let i = 0; i < maxPredictions; i++) {
+                const prediction = predictions[i];
+                const className = prediction.className;
+                const confidence = Math.round(prediction.probability * 100);
+                
+                // Almacenar confianza por clase
+                if (confidences.hasOwnProperty(className)) {
+                    confidences[className] = confidence;
+                }
+                
+                // Encontrar la predicción con mayor confianza
+                if (confidence > maxConfidence) {
+                    maxConfidence = confidence;
+                    predictedClass = className;
+                }
+            }
+            
+            return {
+                predictedClass,
+                maxConfidence,
+                confidences
+            };
+        }
+        
+        /**
+         * Actualiza la interfaz con los resultados de la predicción
+         * @param {Object} result - Resultados de la predicción
+         */
+        function updateInterface(result) {
+            try {
+                // Actualizar porcentajes de confianza
+                if (elements.redConfidence) {
+                    elements.redConfidence.textContent = `${result.confidences.Rojo}%`;
+                }
+                if (elements.yellowConfidence) {
+                    elements.yellowConfidence.textContent = `${result.confidences.Amarillo}%`;
+                }
+                if (elements.greenConfidence) {
+                    elements.greenConfidence.textContent = `${result.confidences.Verde}%`;
+                }
+                
+                // Activar la luz correspondiente si supera el umbral
+                if (result.maxConfidence >= confidenceThreshold) {
+                    activateLight(result.predictedClass);
+                }
+            } catch (error) {
+                console.error("[ERROR] Error en updateInterface:", error);
+            }
+        }
+        
+        /**
+         * Maneja las detecciones estables y controla los anuncios de voz
+         * @param {Object} result - Resultados de la predicción
+         */
+        function handleStableDetection(result) {
+            try {
+                if (result.maxConfidence >= confidenceThreshold) {
+                    if (result.predictedClass === currentStableColor) {
+                        // Incrementar contador si es el mismo color
+                        stableDetectionCount++;
+                    } else {
+                        // Resetear contador si es un color diferente
+                        stableDetectionCount = 1;
+                        currentStableColor = result.predictedClass;
+                    }
+                    
+                    // Anunciar solo si la detección es estable
+                    if (stableDetectionCount >= STABLE_DETECTION_THRESHOLD) {
+                        if (currentStableColor !== lastDetectedColor) {
+                            lastDetectedColor = currentStableColor;
+                            speak(`Luz ${currentStableColor}`);
+                            console.log(`[DETECTION] Detectado: ${currentStableColor} (${result.maxConfidence}%) - Estable después de ${stableDetectionCount} detecciones`);
+                        }
+                    }
+                } else {
+                    // Resetear si no supera el umbral
+                    stableDetectionCount = 0;
+                    currentStableColor = "";
+                }
+            } catch (error) {
+                console.error("[ERROR] Error en handleStableDetection:", error);
+            }
+        }
+        
+        /**
+         * Registra las predicciones en la consola para depuración
+         * @param {Object} result - Resultados de la predicción
+         */
+        function logPredictions(result) {
+            const now = Date.now();
+            if (!lastLogTime || now - lastLogTime > LOG_COOLDOWN) {
+                console.log(`[PREDICTION] Rojo: ${result.confidences.Rojo}%, Amarillo: ${result.confidences.Amarillo}%, Verde: ${result.confidences.Verde}%`);
+                lastLogTime = now;
+            }
+        }
+
+        // ===========================================
+        // FUNCIONES DE INTERFAZ DE USUARIO
+        // ===========================================
+        
+        /**
+         * Resetea completamente la interfaz a su estado inicial
+         */
+        function resetInterface() {
+            try {
+                resetResults();
+                updateStatus("Presiona el botón para comenzar");
+                if (elements.startButton) {
+                    elements.startButton.textContent = "Iniciar Detección";
+                }
+                if (elements.cameraPlaceholder) {
+                    elements.cameraPlaceholder.style.display = 'flex';
+                }
+            } catch (error) {
+                console.error("[ERROR] Error en resetInterface:", error);
+            }
+        }
+        
+        /**
+         * Resetea los resultados de detección
+         */
+        function resetResults() {
+            try {
+                resetLightStates();
+                if (elements.redConfidence) {
+                    elements.redConfidence.textContent = "0%";
+                }
+                if (elements.yellowConfidence) {
+                    elements.yellowConfidence.textContent = "0%";
+                }
+                if (elements.greenConfidence) {
+                    elements.greenConfidence.textContent = "0%";
+                }
+                lastDetectedColor = "";
+                stableDetectionCount = 0;
+                currentStableColor = "";
+            } catch (error) {
+                console.error("[ERROR] Error en resetResults:", error);
+            }
+        }
+        
+        /**
+         * Resetea los estados visuales de las luces
+         */
+        function resetLightStates() {
+            try {
+                if (elements.redLight) {
+                    elements.redLight.classList.remove('active');
+                }
+                if (elements.yellowLight) {
+                    elements.yellowLight.classList.remove('active');
+                }
+                if (elements.greenLight) {
+                    elements.greenLight.classList.remove('active');
+                }
+            } catch (error) {
+                console.error("[ERROR] Error en resetLightStates:", error);
+            }
+        }
+        
+        /**
+         * Activa visualmente una luz específica
+         * @param {string} color - Color de la luz a activar ('Rojo', 'Amarillo', 'Verde')
+         */
+        function activateLight(color) {
+            try {
+                resetLightStates();
+                
+                switch (color) {
+                    case 'Rojo':
+                        if (elements.redLight) {
+                            elements.redLight.classList.add('active');
+                        }
+                        break;
+                    case 'Amarillo':
+                        if (elements.yellowLight) {
+                            elements.yellowLight.classList.add('active');
+                        }
+                        break;
+                    case 'Verde':
+                        if (elements.greenLight) {
+                            elements.greenLight.classList.add('active');
+                        }
+                        break;
+                }
+            } catch (error) {
+                console.error("[ERROR] Error en activateLight:", error);
+            }
+        }
+        
+        /**
+         * Actualiza el mensaje de estado
+         * @param {string} message - Mensaje a mostrar
+         */
+        function updateStatus(message) {
+            try {
+                if (elements.status) {
+                    elements.status.textContent = message;
+                }
+            } catch (error) {
+                console.error("[ERROR] Error en updateStatus:", error);
+            }
+        }
+        
+        /**
+         * Muestra un mensaje de error
+         * @param {string} message - Mensaje de error
+         */
+        function showError(message) {
+            try {
+                if (elements.error) {
+                    elements.error.textContent = message;
+                    elements.error.style.display = 'block';
+                }
+                updateStatus("Error");
+                console.error(`[ERROR] ${message}`);
+            } catch (error) {
+                console.error("[ERROR] Error en showError:", error);
+            }
+        }
+        
+        /**
+         * Oculta el mensaje de error
+         */
+        function hideError() {
+            try {
+                if (elements.error) {
+                    elements.error.style.display = 'none';
+                }
+            } catch (error) {
+                console.error("[ERROR] Error en hideError:", error);
+            }
+        }
+
+        // ===========================================
+        // FUNCIONES DE ACCESIBILIDAD (VOZ FEMENINA)
+        // ===========================================
+        
+        /**
+         * Función para anunciar por voz el color detectado con voz femenina fluida
+         * @param {string} text - Texto a pronunciar
+         */
+        function speak(text) {
+            if (!voiceEnabled) return;
+            
+            // Verificar cooldown para evitar repeticiones
+            const now = Date.now();
+            if (now - lastVoiceTime < VOICE_COOLDOWN) return;
+            
+            if ('speechSynthesis' in window) {
+                // Cancelar cualquier síntesis en curso
+                window.speechSynthesis.cancel();
+                
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.lang = 'es-ES';
+                
+                // Configuración para una voz femenina más fluida
+                utterance.rate = 0.95;        // Velocidad ligeramente más lenta para mayor claridad
+                utterance.pitch = 1.1;        // Tono un poco más alto (típicamente femenino)
+                utterance.volume = 0.9;       // Volumen ligeramente reducido para mayor naturalidad
+                
+                // Seleccionar una voz femenina en español si está disponible
+                const voices = window.speechSynthesis.getVoices();
+                console.log("[INFO] Voces disponibles:", voices.length);
+                
+                // Prioridad de selección de voces (de mayor a menor preferencia)
+                const preferredVoices = [
+                    // Buscar voces femeninas españolas primero
+                    (voice) => voice.lang.includes('es') && 
+                               (voice.name.includes('female') || 
+                                voice.name.includes('mujer') || 
+                                voice.name.includes('española') ||
+                                voice.name.includes('Spanish') &&
+                                !voice.name.includes('male')),
+                    
+                    // Buscar voces femeninas latinoamericanas
+                    (voice) => voice.lang.includes('es') && 
+                               (voice.name.includes('female') || 
+                                voice.name.includes('mujer') ||
+                                voice.name.includes('Latina') ||
+                                voice.name.includes('Monica') ||
+                                voice.name.includes('Paulina')),
+                    
+                    // Cualquier voz en español
+                    (voice) => voice.lang.includes('es'),
+                    
+                    // Voces femeninas de otros idiomas como última opción
+                    (voice) => voice.name.includes('female') || 
+                               voice.name.includes('mujer') ||
+                               voice.name.includes('woman')
+                ];
+                
+                let selectedVoice = null;
+                
+                // Iterar sobre los criterios de preferencia
+                for (const voiceFilter of preferredVoices) {
+                    const candidateVoice = voices.find(voiceFilter);
+                    if (candidateVoice) {
+                        selectedVoice = candidateVoice;
+                        console.log("[INFO] Voz femenina seleccionada:", selectedVoice.name, "-", selectedVoice.lang);
+                        break;
+                    }
+                }
+                
+                // Si encontramos una voz específica, usarla
+                if (selectedVoice) {
+                    utterance.voice = selectedVoice;
+                } else {
+                    // Si no hay voz específica, usar la primera voz en español disponible
+                    const spanishVoice = voices.find(voice => voice.lang.includes('es'));
+                    if (spanishVoice) {
+                        utterance.voice = spanishVoice;
+                        console.log("[INFO] Usando voz en español alternativa:", spanishVoice.name);
+                    }
+                }
+                
+                // Mejorar la fluidez con pausas naturales
+                if (text.includes("Luz")) {
+                    // Añadir una pequeña pausa antes de decir el color
+                    utterance.text = "Luz" + ", " + text.replace("Luz ", "");
+                }
+                
+                // Manejar eventos de la síntesis
+                utterance.onstart = () => {
+                    console.log(`[VOICE] Iniciando: "${text}" con voz femenina: ${utterance.voice ? utterance.voice.name : 'predeterminada'}`);
+                };
+                
+                utterance.onend = () => {
+                    console.log(`[VOICE] Completado: "${text}"`);
+                };
+                
+                utterance.onerror = (event) => {
+                    console.error(`[VOICE] Error: ${event.error}`);
+                };
+                
+                // En iOS, a veces es necesario retrasar un poco la síntesis
+                if (/iPad|iPhone|iPod/.test(navigator.userAgent)) {
+                    setTimeout(() => {
+                        window.speechSynthesis.speak(utterance);
+                    }, 100);
+                } else {
+                    window.speechSynthesis.speak(utterance);
+                }
+                
+                lastVoiceTime = now;
+                
+            } else {
+                console.log('[ERROR] El navegador no soporta síntesis de voz femenina');
+                
+                // Mostrar mensaje de error si no hay soporte para voz
+                const deviceInfo = getDeviceInfo();
+                if (deviceInfo.os === "Linux" || deviceInfo.browser === "Firefox") {
+                    showError("Tu navegador no soporta síntesis de voz. Considera usar Chrome o Edge para esta función.");
+                }
+            }
+        }
+
+        // ===========================================
+        // INICIALIZACIÓN AL CARGAR LA PÁGINA
+        // ===========================================
+        
+        // Ejecutar la inicialización cuando el DOM esté completamente cargado
+        document.addEventListener('DOMContentLoaded', initializeApp);
+    </script>
+</body>
+</html>
+
+
